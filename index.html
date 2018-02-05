@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html>
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!-- HEY! WHAT DO YOU THINK YOU'RE DOING POKING AROUND IN MY CODE? -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                                                               -->
+    <!--                       seriously though, this is not good code -->
+    <!--                                                               -->
+    <head>
+        <title>Youtube video review</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.6.2/css/bulma.min.css">
+        <script defer src="https://use.fontawesome.com/releases/v5.0.0/js/all.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-scrollTo/2.1.2/jquery.scrollTo.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/js-cookie@2/src/js.cookie.min.js"></script>
+
+    </head>
+    <body>
+        <h1 class="title">Youtube video review</h1>
+        <div id="player-container">
+            <div id="video-overlay"></div>
+            <!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
+            <div id="player"></div>
+        </div>
+        <div id="commentsAndEditor">
+            <div id="buttonBar" class="level">
+                <div class="level-left">
+                    <button id="newComment" class="button level-item">New comment here</button>
+                    <button id="saveButton" class="button level-item">Publish comments</button>
+                    <button id="loadButton" class="button level-item">New review</button>
+                    <span id="sizeBar" class="level-item">Player size:</span>
+                </div>
+            </div>
+            <div class="content">
+                <div id="lastSaveUri"></div>
+                <div id="autosaveTime"></div>
+            </div>
+            <div id="transcript"></div>
+        </div>
+        <div id="usage" class="content">
+            <br>
+            <h2>Usage</h2>
+            <ol>
+                <li>Click "New review" and paste in a youtube url</li>
+                <li>Play the video, clicking "new comment here" once you wish
+                    to make a new comment</li>
+                <li>Type the comment, then click play again (or click anywhere outside the text area) to
+                    resume playback</li>
+                <li>Once finished, press "publish comments" to submit the youtube url and comments
+                    and get a unique link you can share with others</li>
+            </ol>
+            <h2>Who is this for?</h2>
+            <p>
+                People who wish to create a casual gameplay review without the hassle of video
+                editors, voiceovers and video uploads.
+            </p>
+            <h2>Disclaimer</h2>
+            <p>
+                At its current state, this is a small, quick and dirty prototype that will have to be rewritten
+                if it's successful. If this kind of tool already exists, I would happily scrap this code
+                and use that instead.
+            </p>
+            <p>
+                If I do rewrite it however, I will make sure it will use the same data format as before
+                and therefore be backwards compatible.
+            </p>
+            <h2>Technical details</h2>
+            <p>
+                This app is a single client-driven html page. The youtube embedded player
+                javascript api is used for video playback, and the github gist rest api for comment
+                storage. No data is submitted to my server.
+            </p>
+        </div>
+        <style>
+         #player-container {
+             position: relative;
+             display: inline-block;
+         }
+         #usage {
+             display: inline-block;
+             /* vertical-align: top; */
+         }
+         #video-overlay {
+             position: absolute;
+             bottom: 10%;
+             width: 100%;
+             text-align: center;
+             color: black;
+             font-size: 20pt;
+             background-color: rgba(255, 255, 255, 0.78);
+
+             -moz-transition:opacity .2s ease-in;
+             -o-transition:opacity .2s ease-in;
+             -webkit-transition:opacity .2s ease-in;
+             transition:opacity .2s ease-in;
+         }
+         #video-overlay.hidden {
+             opacity: 0;
+         }
+         .ytp-pause-overlay {
+             display: none;
+             color: green;
+         }
+
+         .comment .comment-text {
+             margin-left: .5em;
+             border: 0;
+         }
+         .comment {
+             cursor: pointer;
+         }
+         #transcript .comment {
+             margin: .2em;
+         }
+         .old-comment .comment-text {
+             color: gray;
+         }
+         .upcoming-comment .comment-text {
+             color: green;
+         }
+         #transcript {
+             max-height: 200px;
+             width: 100%;
+             overflow-y: scroll;
+         }
+        </style>
+
+
+        <script>
+
+         var comments = [];
+         var textConfirmed = false;
+         var changed = false;
+
+         var tag = document.createElement('script');
+
+         tag.src = "https://www.youtube.com/iframe_api";
+         var firstScriptTag = document.getElementsByTagName('script')[0];
+         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+         var player;
+         function onYouTubeIframeAPIReady() {
+             player = new YT.Player('player', {
+                 width: '800',
+                 height: 800 * 0.5625,
+                 /* videoId: '5dC37Kyxgc8',*/
+                 playerVars: {
+                     rel: 0,
+                     showinfo: 0,
+                     fs: 0,
+                     modestbranding: 0,
+                 },
+                 events: {
+                     'onReady': onPlayerReady,
+                     'onStateChange': onPlayerStateChange
+                 }
+             });
+         }
+
+         function onPlayerReady(event) {
+             var autoSave = Cookies.get('autosave-state');
+             var id = getUrlParameter('id');
+             if (autoSave && !id)
+                 load(JSON.parse(autoSave));
+             else if (id)
+                 loadFromGist(id);
+         }
+
+         var timerId;
+         var transcript = $('#transcript');
+
+         var manualTime = 0;
+         function getTime() {
+             if (player.getPlayerState() == YT.PlayerState.PLAYING)
+                 manualTime = player.getCurrentTime();
+             return manualTime;
+         }
+         function setTime(time) {
+             player.seekTo(time);
+             manualTime = time;
+         }
+
+         function getUrlParameter(sParam) {
+             var sPageURL = decodeURIComponent(window.location.search.substring(1)),
+                 sURLVariables = sPageURL.split('&'),
+                 sParameterName,
+                 i;
+
+             for (i = 0; i < sURLVariables.length; i++) {
+                 sParameterName = sURLVariables[i].split('=');
+
+                 if (sParameterName[0] === sParam) {
+                     return sParameterName[1] === undefined ? true : sParameterName[1];
+                 }
+             }
+         }
+
+         function shouldPauseBeforeContinue(text) {
+             return text.trim().length > 50;
+         }
+
+         function appendComment() {
+             var p = $('<div/>')
+                 .addClass('comment')
+                 .click(function() {
+                     return;
+                     player.pauseVideo();
+                     setTime($(this).data('comment').time);
+                     updateComments();
+                 })
+                 .appendTo(transcript);
+
+             var seekHere = function() {
+                 player.pauseVideo();
+                 setTime(p.data('comment').time);
+                 updateComments();
+             };
+
+             $('<span/>')
+                 .addClass('timestamp')
+                 .click(seekHere)
+                 .appendTo(p);
+
+             var commentText = $('<span/>')
+                 .addClass('comment-text')
+                 .addClass('is-small')
+                 .click(seekHere)
+                 .appendTo(p);
+
+             var commentEdit = $('<textarea/>')
+                 .addClass('comment-edit')
+                 .addClass('textarea')
+                 .addClass('is-small')
+                 .focusout(function() {
+                     console.log("out");
+                     comments = comments.filter(function(el) { return el.text.trim().length > 0; })
+                     updateComments();
+                     player.playVideo();
+                     $(this).hide();
+                     commentText.show();
+                 })
+                 .keyup(function() {
+                     var newText = $(this).prop('value')
+                     changed = true;
+                     comments[$(this).parent().data('commentIndex')].text = newText;
+                     setOverlayText(newText);
+                 })
+                 .hide()
+                 .appendTo(p);
+
+             var editLink = $('<a>edit</a>')
+                 .click(function() {
+                     commentText.hide();
+                     commentEdit.show().focus();
+                     player.pauseVideo();
+                     setTime($(this).parent().data('comment').time);
+                     updateComments();
+                 })
+                 .hide()
+                 .appendTo(p);
+             p.hover(function() { editLink.show(); }, function() { editLink.hide(); });
+         }
+
+         function setOverlayText(text) {
+             if (text.trim().length) {
+                 $('#video-overlay').html(text.replace(/\n/g, '<br>'));
+                 $('#video-overlay').removeClass('hidden');
+             } else {
+                 $('#video-overlay').addClass('hidden');
+             }
+         }
+
+         function humanTime(secs) {
+             fmins = Math.floor(secs / 60);
+             fsecs = Math.floor(secs % 60);
+             return fmins + ':' + ("00" + fsecs).slice(-2);
+         }
+
+         var currentTextNeedingConfirmation;
+         var confirmedText;
+         function confirmText() {
+             confirmedText = currentTextNeedingConfirmation;
+         }
+         function updateComments() {
+             comments.sort(function(a, b) { return a.time - b.time; });
+
+             while (transcript.children().length < comments.length)
+                 appendComment();
+
+             while (transcript.children().length > comments.length)
+                 transcript.children().last().remove();
+
+             var lastOld;
+
+             transcript.children().each(function(idx) {
+                 var data = comments[idx];
+                 $(this).data('comment', data);
+                 $(this).data('commentIndex', idx);
+                 if (getTime() >= data.time) {
+                     lastOld = idx;
+                     $(this).removeClass('upcoming-comment').addClass('old-comment');
+                 }
+                 else {
+                     $(this).addClass('upcoming-comment').removeClass('old-comment');
+                 }
+                 $(this).find('.comment-text').text(data.text);
+                 $(this).find('.comment-edit').text(data.text);
+                 $(this).find('.timestamp').text(humanTime(data.time));
+             });
+
+             if (lastOld !== undefined) {
+                 if (getTime() - comments[lastOld].time < 4) {
+                     var text = comments[lastOld].text;
+                     setOverlayText(text);
+                     if (shouldPauseBeforeContinue(text)) {
+                         currentTextNeedingConfirmation = text;
+                     }
+                     if (confirmedText != currentTextNeedingConfirmation) {
+                         /* previouslySkippedText = text;*/
+                         player.pauseVideo();
+                     }
+                 } else {
+                     setOverlayText("");
+                 }
+             }
+         }
+         setInterval(function() {
+             if (player.getPlayerState() == YT.PlayerState.PLAYING) {
+                 updateComments();
+             }
+         }, 500);
+
+
+         function autoSave() {
+             if (!changed)
+                 return;
+             var state = stateToJson();
+             if (!state.comments.length || !state.videoId.length)
+                 return;
+             Cookies.set('autosave-state', state);
+             $('#autosaveTime').text('Autosaved at ' + state.now);
+             changed = false;
+         }
+         setInterval(autoSave, 3 * 1000);
+
+         function load(json) {
+             console.log(json);
+             var autoSave = Cookies.get('autosave-state');
+             if (autoSave)
+                 autoSave = JSON.parse(autoSave);
+             if (autoSave && autoSave.videoId == json.videoId)
+                 comments = autoSave.comments;
+             else if (json.comments)
+                 comments = json.comments;
+             else
+                 comments = [];
+             player.loadVideoById(json.videoId);
+             updateComments();
+         }
+
+         function loadFromGist(gist) {
+             $.ajax({
+                 url: 'https://api.github.com/gists/' + gist,
+                 type: 'GET',
+                 success: function(e) {
+                     var dataUrl = e.files["datafile"].raw_url;
+                     console.log("Fetching data from", dataUrl);
+                     $.ajax({
+                         url: dataUrl,
+                         type: 'GET',
+                         success: function(e) {
+                             load(JSON.parse(e));
+                         },
+                         error: function(e) {
+                             console.warn("gist fetch file error", e);
+                         }
+                     });
+                 },
+                 error: function(e) {
+                     console.warn("gist fetch gist error", e);
+                 }
+             });
+         }
+
+         function stateToJson() {
+             return {
+                 videoId: ytVidId(player.getVideoUrl()),
+                 comments: comments,
+                 now: Date().toString()
+             };
+         }
+
+         function updateLinks() {
+             var link = Cookies.get('previous-link');
+             if (link) {
+                 $('#lastSaveUri')
+                     .html('Last published to <a href="' + link + '">' + link + '</a>');
+             }
+         }
+
+         function save(json) {
+             var gist = {
+                 "description": "Video review",
+                 "public": true,
+                 "files": {
+                     "datafile": {
+                         "content": JSON.stringify(json)
+                     }
+                 }
+             };
+
+             $.ajax({
+                 url: 'https://api.github.com/gists',
+                 type: 'POST',
+                 dataType: 'json',
+                 data: JSON.stringify(gist),
+                 success: function(e) {
+                     var link = window.location.origin + window.location.pathname + '?id=' + e.id
+                     Cookies.set('previous-link', link);
+                     updateLinks();
+                     console.log(e);
+                     $('#saveButton').removeClass('is-loading');
+                 },
+                 error: function(e) {
+                     console.warn("gist save error", e);
+                 }
+             });
+         }
+
+         $('#newComment').click(function() {
+             var now = getTime();
+             player.pauseVideo();
+             comments.push({time: now, text: ''});
+             updateComments();
+             var field = $('#transcript .comment').filter(function() {
+                 return $(this).data('comment').time === now;
+             }).first();
+             field.find('.comment-edit').show().focus();
+             field.find('.comment-text').hide();
+             $('#transcript').scrollTo(field);
+         });
+
+         $('#saveButton').click(function() {
+             $(this).addClass('is-loading');
+             save(stateToJson());
+         });
+
+
+         function ytVidId(url) {
+             var p = /^(?:https?:\/\/)?(?:www\.)?(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})(?:\S+)?$/;
+             return (url.match(p)) ? RegExp.$1 : false;
+         }
+
+         $('#loadButton').click(function() {
+             var input = prompt("Enter youtube url");
+             var id = ytVidId(input);
+             if (id) {
+                 load({videoId: id})
+             }
+             else if (input.trim().length) {
+                 alert("Did not recognize url: " + input);
+             }
+         });
+
+         [['Small', 600], ['Medium', 900], ['Large', 1200]].forEach(function(pair) {
+             $('<button>' + pair[0] + '</button>')
+                 .click(function() { player.setSize(pair[1], pair[1] * 0.5625); })
+                 .addClass('button')
+                 .addClass('level-item')
+                 .appendTo($('#sizeBar'));
+         });
+
+         function onPlayerStateChange(event) {
+             if (player.getPlayerState() == YT.PlayerState.PLAYING)
+                 confirmText();
+             else if (player.getPlayerState() == YT.PlayerState.PAUSED)
+                 setTime(player.getCurrentTime());
+             updateComments();
+         }
+         updateLinks();
+        </script>
+    </body>
+</html>
