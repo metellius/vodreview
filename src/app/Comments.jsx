@@ -9,11 +9,17 @@ export default class Comments extends React.Component {
     constructor(props) {
         super(props);
     }
+
     render() {
         return (
             <div>
                 {this.props.comments.map((comment) =>
-                    <Comment key={comment.time} data={comment}/>
+                    <Comment
+                        key={comment.time}
+                        data={comment}
+                        onCommentUpdated={(data) => this.props.onCommentUpdated(comment, data)}
+                        previewRequested={this.props.previewRequested}
+                    />
                 )}
             </div>
         );

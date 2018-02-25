@@ -22,9 +22,10 @@ class App extends React.Component {
         this.state = {
             comments: [],
             videoId: "",
-            gist: "ed1294bea95684482bd50354fab3185b"
+            gist: "c72ef0a94d66c02c0d39fcebe91d13eb"
         };
         this.loadFromGist = this.loadFromGist.bind(this);
+        this.onCommentUpdated = this.onCommentUpdated.bind(this);
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -88,13 +89,28 @@ class App extends React.Component {
         });
     }
 
+    onCommentUpdated(comment, change) {
+        const idx = this.state.comments.findIndex((item) => comment.time === item.time);
+        if (change.text) {
+            const newComments = update(this.state.comments, {
+                [idx]: {
+                    text: { $set: change.text }
+                }});
+            this.setState({comments: newComments});
+        }
+    }
+
     render() {
         return (
             <Container>
                 <h1 className="title">Youtube video review</h1>
                 {/* <Box>lol</Box> */}
                 <Player videoId={this.state.videoId}/>
-                <Comments comments={this.state.comments}/>
+                <Comments
+                    comments={this.state.comments}
+                    onCommentUpdated={this.onCommentUpdated}
+                    previewRequested={(newText) => console.log("typed up", newText)}
+                />
                 <Button isColor='warning' isLoading>isLoading={true}</Button>
             </Container>
         );

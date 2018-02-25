@@ -8,20 +8,38 @@ export default class Comment extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            editing: this.props.data.time === 2
+            editing: false
         };
+        this.newText = "";
+        this.onChange = this.onChange.bind(this);
+        this.onBlur = this.onBlur.bind(this);
     }
+
+    onChange(e) {
+        this.newText = e.target.value;
+        this.props.previewRequested(e.target.value);
+    }
+
+    onBlur() {
+        this.setState({editing: false})
+        this.props.onCommentUpdated({text: this.newText});
+    }
+
     render() {
         return (
             <div>
                 { this.state.editing ?
                   <TextArea
                       placeholder="Type your comment"
+                      autoFocus={true}
+                      onChange={this.onChange}
+                      onBlur={this.onBlur}
                   >{this.props.data.text}</TextArea>
                     :
                   <div>
                       <span>{this.props.data.time}</span>
                       <span>{this.props.data.text}</span>
+                      <a onClick={() => this.setState({editing: true})}>Edit</a>
                   </div>
                 }
             </div>
