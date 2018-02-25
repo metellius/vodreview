@@ -12,16 +12,63 @@ export default class Player extends React.Component {
         super(props);
         this.state = {
             commits: [],
+            caption: this.props.previewCaption,
+            hasCurrentCaption: false,
+            playing: false
         };
         this.onReady = this.onReady.bind(this);
         this.onStateChange = this.onStateChange.bind(this);
+        this.timerTick = this.timerTick.bind(this);
+        this.setTime = this.setTime.bind(this);
+        this.getTime = this.getTime.bind(this);
     }
 
-    onReady() {
+    onReady(e) {
+        this.player = e.target;
         console.log("onReady");
     }
     onStateChange() {
-        console.log("stateChange")
+        this.setState({playing: (this.player && this.player.getPlayerState() == YT.PlayerState.PLAYING)})
+    }
+    componentWillReceiveProps(nextProps) {
+        if (nextProps.previewCaption.length > 0)
+            this.setState({caption: nextProps.previewCaption})
+    }
+
+    componentWillUnmount() {
+        clearInterval(this.timer);
+    }
+
+    componentDidMount() {
+        this.timer = setInterval(this.timerTick, 250);
+        this.setTime(0);
+    }
+
+    getTime() {
+        if (this.state.playing)
+            this.manualTime = this.player.getCurrentTime();
+        return this.manualTime;
+    }
+    setTime(time) {
+        if (this.player)
+            this.player.seekTo(time);
+        this.manualTime = time;
+    }
+
+    timerTick() {
+        const time = this.getTime();
+        if (this.state.playing) {
+            const firstCaption = this.props.comments.findIndex((item) =>
+                 time > item.time && time - item.time < 3);
+            if (firstCaption != -1) {
+                const comment = this.props.comments[firstCaption];
+                /* console.log(comment, time - comment.time > 3);*/
+                /* if (time > comment.time && time - comment.time < 3)*/
+                this.setState({caption: comment.text, hasCurrentCaption: true})
+            }
+            else
+                this.setState({hasCurrentCaption: false})
+        }
     }
 
     render() {
@@ -37,13 +84,22 @@ export default class Player extends React.Component {
             }
         };
         return (
-            <div>
+            <div className="player-container">
                 <Youtube
                     videoId={this.props.videoId}
                     opts={opts}
                     onReady={this.onReady}
                     onStateChange={this.onStateChange}
-                />
+                >
+                </Youtube>
+                <div
+                    className="video-overlay"
+                    style={{
+                        opacity: this.state.hasCurrentCaption || this.props.previewCaption.length ? 1 : 0
+                    }}
+                >{!this.state.playing && this.props.previewCaption.length ?
+                    this.props.previewCaption :
+                    this.state.caption}</div>
             </div>
         );
     }

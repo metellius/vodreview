@@ -22,7 +22,8 @@ class App extends React.Component {
         this.state = {
             comments: [],
             videoId: "",
-            gist: "c72ef0a94d66c02c0d39fcebe91d13eb"
+            gist: "c72ef0a94d66c02c0d39fcebe91d13eb",
+            previewCaption: ""
         };
         this.loadFromGist = this.loadFromGist.bind(this);
         this.onCommentUpdated = this.onCommentUpdated.bind(this);
@@ -49,7 +50,8 @@ class App extends React.Component {
     load(json) {
         console.log(json);
         this.setState({
-            comments: json.comments
+            comments: json.comments,
+            videoId: json.videoId
         })
         /* var autoSave = Cookies.get('autosave-state');
          * if (autoSave)
@@ -105,11 +107,15 @@ class App extends React.Component {
             <Container>
                 <h1 className="title">Youtube video review</h1>
                 {/* <Box>lol</Box> */}
-                <Player videoId={this.state.videoId}/>
+                <Player
+                    videoId={this.state.videoId}
+                    previewCaption={this.state.previewCaption}
+                    comments={this.state.comments}
+                />
                 <Comments
                     comments={this.state.comments}
                     onCommentUpdated={this.onCommentUpdated}
-                    previewRequested={(newText) => console.log("typed up", newText)}
+                    previewRequested={(newText) => this.setState({previewCaption: newText})}
                 />
                 <Button isColor='warning' isLoading>isLoading={true}</Button>
             </Container>

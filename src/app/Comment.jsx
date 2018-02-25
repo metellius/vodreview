@@ -23,6 +23,7 @@ export default class Comment extends React.Component {
     onBlur() {
         this.setState({editing: false})
         this.props.onCommentUpdated({text: this.newText});
+        this.props.previewRequested("");
     }
 
     render() {
