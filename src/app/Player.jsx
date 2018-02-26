@@ -29,6 +29,8 @@ export default class Player extends React.Component {
     }
     onStateChange() {
         this.setState({playing: (this.player && this.player.getPlayerState() == YT.PlayerState.PLAYING)})
+        if (this.player)
+            this.manualTime = this.player.getCurrentTime();
     }
     componentWillReceiveProps(nextProps) {
         if (nextProps.previewCaption.length > 0)
@@ -59,18 +61,16 @@ export default class Player extends React.Component {
 
     timerTick() {
         const time = this.getTime();
-        if (this.state.playing) {
-            const firstCaption = this.props.comments.findIndex((item) =>
-                 time > item.time && time - item.time < 3);
-            if (firstCaption != -1) {
-                const comment = this.props.comments[firstCaption];
-                /* console.log(comment, time - comment.time > 3);*/
-                /* if (time > comment.time && time - comment.time < 3)*/
-                this.setState({caption: comment.text, hasCurrentCaption: true})
-            }
-            else
-                this.setState({hasCurrentCaption: false})
+        const firstCaption = this.props.comments.findIndex((item) =>
+             time >= item.time && time - item.time < 3);
+        if (firstCaption != -1) {
+            const comment = this.props.comments[firstCaption];
+            /* console.log(comment, time - comment.time > 3);*/
+            /* if (time > comment.time && time - comment.time < 3)*/
+            this.setState({caption: comment.text, hasCurrentCaption: true})
         }
+        else
+            this.setState({hasCurrentCaption: false})
     }
 
     render() {
@@ -99,9 +99,7 @@ export default class Player extends React.Component {
                     style={{
                         opacity: this.state.hasCurrentCaption || this.props.previewCaption.length ? 1 : 0
                     }}
-                >{!this.state.playing && this.props.previewCaption.length ?
-                    this.props.previewCaption :
-                    this.state.caption}</div>
+                >{this.props.previewCaption ? this.props.previewCaption : this.state.caption}</div>
             </div>
         );
     }

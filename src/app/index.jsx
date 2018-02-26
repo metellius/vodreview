@@ -23,10 +23,11 @@ class App extends React.Component {
             comments: [],
             videoId: "",
             gist: "c72ef0a94d66c02c0d39fcebe91d13eb",
-            previewCaption: ""
+            previewCaption: "",
+            editingCommentAt: -1
         };
         this.loadFromGist = this.loadFromGist.bind(this);
-        this.onCommentUpdated = this.onCommentUpdated.bind(this);
+        this.onEditingFinished = this.onEditingFinished.bind(this);
         this.addNewComment = this.addNewComment.bind(this);
     }
 
@@ -92,24 +93,37 @@ class App extends React.Component {
         });
     }
 
-    onCommentUpdated(comment, change) {
+    onEditingFinished(comment, change) {
         const idx = this.state.comments.findIndex((item) => comment.time === item.time);
-        if (change.text) {
-            const newComments = update(this.state.comments, {
-                [idx]: {
-                    text: { $set: change.text }
-                }});
-            this.setState({comments: newComments});
+        this.setState({editingCommentAt: -1});
+        if (change.text !== undefined) {
+            var newComments;
+            if (change.text) {
+                newComments = update(this.state.comments, {
+                    [idx]: {
+                        text: { $set: change.text }}
+                });
+            } else {
+                newComments = update(this.state.comments, {
+                    $splice: [[idx, 1]]
+                });
+                console.log(newComments);
+            }
+            if (newComments)
+                this.setState({comments: newComments});
         }
     }
 
     addNewComment() {
         const time = this.getTime();
         const newComment = {time: time, text: ""};
-        const idx = this.state.comments.findIndex((item) => item.time > time);
-        const newComments = update(this.state.comments, {
-            $splice: [[idx, 0, newComment]] });
-        this.setState({comments: newComments});
+        const idx = this.state.comments.findIndex((item) => item.time >= time);
+        if (this.state.comments[idx].time !== time) {
+            const newComments = update(this.state.comments, {
+                $splice: [[idx, 0, newComment]] });
+            this.setState({comments: newComments});
+        }
+        this.setState({editingCommentAt: time});
     }
 
     render() {
@@ -120,7 +134,11 @@ class App extends React.Component {
                 <Player
                     videoId={this.state.videoId}
                     previewCaption={this.state.previewCaption}
-                    onRef={(child) => this.getTime = child.getTime }
+                    onRef={(child) => {
+                            this.getTime = child.getTime;
+                            this.setTime = child.setTime;
+                        }
+                    }
                     comments={this.state.comments}
                 />
                 <div>
@@ -130,7 +148,13 @@ class App extends React.Component {
                 </div>
                 <Comments
                     comments={this.state.comments}
-                    onCommentUpdated={this.onCommentUpdated}
+                    editingCommentAt={this.state.editingCommentAt}
+                    onEditingFinished={this.onEditingFinished}
+                    seekTo={(time) => this.setTime(time)}
+                    editRequested={(comment) => {
+                            this.setTime(comment.time);
+                            this.setState({editingCommentAt: comment.time});
+                    }}
                     previewRequested={(newText) => this.setState({previewCaption: newText})}
                 />
                 <Button isColor='warning' isLoading>isLoading={true}</Button>

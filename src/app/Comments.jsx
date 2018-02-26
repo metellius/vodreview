@@ -17,7 +17,10 @@ export default class Comments extends React.Component {
                     <Comment
                         key={comment.time}
                         data={comment}
-                        onCommentUpdated={(data) => this.props.onCommentUpdated(comment, data)}
+                        editingCommentAt={this.props.editingCommentAt}
+                        onEditingFinished={(data) => this.props.onEditingFinished(comment, data)}
+                        seekTo={this.props.seekTo}
+                        editRequested={this.props.editRequested}
                         previewRequested={this.props.previewRequested}
                     />
                 )}

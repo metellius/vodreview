@@ -7,12 +7,10 @@ import { TextArea, Container, Button, Box  } from 'bloomer';
 export default class Comment extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {
-            editing: !this.props.data.text.length
-        };
         this.newText = "";
         this.onChange = this.onChange.bind(this);
         this.onBlur = this.onBlur.bind(this);
+        this.onFocus = this.onFocus.bind(this);
     }
 
     onChange(e) {
@@ -21,30 +19,46 @@ export default class Comment extends React.Component {
     }
 
     onBlur() {
-        this.setState({editing: false})
-        this.props.onCommentUpdated({text: this.newText});
+        this.props.onEditingFinished({text: this.newText});
         this.props.previewRequested("");
+    }
+
+    onFocus() {
+        delete this.newText;
+    }
+
+    prettyTime() {
+        var secs = this.props.data.time;
+        var fmins = Math.floor(secs / 60);
+        var fsecs = Math.floor(secs % 60);
+        return fmins + ':' + ("00" + fsecs).slice(-2);
     }
 
     render() {
         return (
             <div>
-                { this.state.editing ?
+                { this.props.editingCommentAt === this.props.data.time ?
                   <TextArea
                       placeholder="Type your comment"
                       autoFocus={true}
                       onChange={this.onChange}
                       onBlur={this.onBlur}
+                      onFocus={this.onFocus}
                   >{this.props.data.text}</TextArea>
                     :
                   <div>
-                      <span>{this.props.data.time}</span>
+                      <span
+                          onClick={() => this.props.seekTo(this.props.data.time)}
+                          style={{
+                              cursor: "pointer",
+                              color: "green"
+                          }}
+                      >{this.prettyTime()}</span>
                       <span>{this.props.data.text}</span>
-                      <a onClick={() => this.setState({editing: true})}>Edit</a>
+                      <a onClick={() => this.props.editRequested(this.props.data)}>Edit</a>
                   </div>
                 }
             </div>
         );
-        
     }
 }
