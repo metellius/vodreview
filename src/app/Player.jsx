@@ -37,11 +37,13 @@ export default class Player extends React.Component {
 
     componentWillUnmount() {
         clearInterval(this.timer);
+        this.props.onRef(null);
     }
 
     componentDidMount() {
         this.timer = setInterval(this.timerTick, 250);
         this.setTime(0);
+        this.props.onRef(this);
     }
 
     getTime() {

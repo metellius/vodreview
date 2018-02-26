@@ -1,0 +1,19 @@
+.player-container {
+    position: relative;
+    display: inline-block;
+}
+
+.video-overlay {
+    position: absolute;
+    bottom: 10%;
+    width: 100%;
+    text-align: center;
+    color: black;
+    font-size: 20pt;
+    background-color: rgba(255, 255, 255, 0.78);
+
+    -moz-transition:opacity .2s ease-in;
+    -o-transition:opacity .2s ease-in;
+    -webkit-transition:opacity .2s ease-in;
+    transition:opacity .2s ease-in;
+}

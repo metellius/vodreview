@@ -8,7 +8,7 @@ export default class Comment extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            editing: false
+            editing: !this.props.data.text.length
         };
         this.newText = "";
         this.onChange = this.onChange.bind(this);

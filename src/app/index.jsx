@@ -27,6 +27,7 @@ class App extends React.Component {
         };
         this.loadFromGist = this.loadFromGist.bind(this);
         this.onCommentUpdated = this.onCommentUpdated.bind(this);
+        this.addNewComment = this.addNewComment.bind(this);
     }
 
     componentDidUpdate(prevProps, prevState) {
@@ -102,6 +103,15 @@ class App extends React.Component {
         }
     }
 
+    addNewComment() {
+        const time = this.getTime();
+        const newComment = {time: time, text: ""};
+        const idx = this.state.comments.findIndex((item) => item.time > time);
+        const newComments = update(this.state.comments, {
+            $splice: [[idx, 0, newComment]] });
+        this.setState({comments: newComments});
+    }
+
     render() {
         return (
             <Container>
@@ -110,8 +120,14 @@ class App extends React.Component {
                 <Player
                     videoId={this.state.videoId}
                     previewCaption={this.state.previewCaption}
+                    onRef={(child) => this.getTime = child.getTime }
                     comments={this.state.comments}
                 />
+                <div>
+                    <Button isColor="primary" onClick={this.addNewComment}>New comment</Button>
+                    <Button>Publish comments</Button>
+                    <Button>New review</Button>
+                </div>
                 <Comments
                     comments={this.state.comments}
                     onCommentUpdated={this.onCommentUpdated}
